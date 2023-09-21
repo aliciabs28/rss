@@ -1,2 +1,2 @@
 # rss
-Core
+Ce dossier appartient à @AliciaBLANCHI (copyright)
