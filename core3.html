@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+# Représentation socio-spatiales des toponymes de Nice depuis les annonces immobilières géolocalisées
+# ALICIA BLANCHI(copyright)
+#Version 0.1 
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Toponomascape of NICE - Street scape</title>
+    <!-- Inclure le fichier CSS de Leaflet (version 1.7.1) -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <!-- Inclure le fichier CSS de Leaflet.draw (version 1.0.4) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css" />
+
+    <style>
+        /* Style minimal pour la carte */
+        #map {
+            width: 100%;
+            height: 800px;
+        }
+
+        /* Style pour le panneau d'informations */
+        .info {
+            background: white;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            box-shadow: 0 0 5px rgba(0, 0, 0, 0.2);
+        }
+    </style>
+</head>
+<body>
+    <!-- Créer un conteneur pour la carte -->
+    <div id="map"></div>
+
+    <!-- Inclure le fichier JavaScript de Leaflet (version 1.7.1) -->
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <!-- Inclure le fichier JavaScript de Leaflet.draw (version 1.0.4) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
+
+    <script>
+        // Créer une instance de la carte Leaflet
+        var map = L.map('map').setView([43.7031, 7.2661], 13); // Centré sur la carte du monde
+
+        // Ajouter une couche de fond OpenStreetMap avec transparence
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+            opacity: 0.4 // Opacité de la couche de fond (0.7 signifie 70% d'opacité)
+        }).addTo(map);
+
+        // Charger le fichier GeoJSON depuis GitHub et l'ajouter à la carte
+        var geojsonURL = 'https://raw.githubusercontent.com/aliciabs28/rss/main/Toponymes_Nice_128_scored_and_labelled_3.geojson';
+
+        var geojsonLayer;
+        var highlightedLayer = null;
+
+        // Créer un panneau d'informations en bas à droite
+        var infoPanel = L.control({ position: 'bottomright' });
+
+        // Fonction pour mettre à jour le panneau d'informations avec les données du polygone
+        infoPanel.onAdd = function (map) {
+            this._div = L.DomUtil.create('div', 'info');
+            this.update();
+            return this._div;
+        };
+
+        // Fonction pour mettre à jour le panneau d'informations avec les données du polygone
+        infoPanel.update = function (properties) {
+            this._div.innerHTML = '<h4>- INFORMATIONS DU TOPONYME - </h4>' + (properties ?
+                '<b>Toponyme:</b> ' + properties.TOPONYME + '<br>' +
+                '<b>Type de coeur [FALSE or TRUE Core]:</b> ' + properties.CORE_TYPE + '<br>' + '<br>' +
+                '<b>- Rapports hiérarchiques dans la valorisation :</b>' + '<br>' +
+                '<b>Score hierarchique:</b> ' + properties.SCORE + '<br>' +
+                '<b>Nombre de toponyme dominants:</b> ' + properties.PARENT_NB + '<br>' +
+                '<b>Nombre de toponymes dominés:</b> ' + properties.CHILD_NB + '<br>' +
+                '<b>Liste de toponymes dominants:</b> ' + properties.PARENT_LIS + '<br>' +
+                '<b>Liste de toponymes dominés:</b> ' + properties.CHILD_LIST + '<br>' + '<br>' +
+                '<b>- Les représentations socio-spatiales:</b>' + '<br>' +
+                '<b>Typologie RSS:</b> ' + properties.LABEL_N1 + '<br>' +
+                '<b>Catégorie suppérieure:</b> ' + properties.LABEL_N2 + '<br>' +
+                '<b>Catégorie suppérieure mineure:</b> ' + properties.LABEL_N3 + '<br>' +
+                '<b>Label:</b> ' + properties.LABEL + '<b> = Classe N°</b>' + properties.CAT_CAH + '<br>' + '<br>'+
+				'<b>Toponymes de la même classe:</b> ' + properties.Feuil4_TOPO_LABEL + '<br>' +
+		
+                // Ajoutez d'autres variables ici
+                // ...
+                '' : 'Sélectionnez un polygone');
+        };
+
+        infoPanel.addTo(map);
+
+        fetch(geojsonURL)
+            .then(function (response) {
+                return response.json();
+            })
+            .then(function (data) {
+                // Créer une couche GeoJSON et l'ajouter à la carte
+                geojsonLayer = L.geoJSON(data, {
+                    style: function (feature) {
+                        return {
+                            fillColor: getRandomColor(),
+                            weight: 1,
+                            opacity: 1,
+                            color: 'transparent',
+                            fillOpacity: 1
+                        };
+                    },
+                    onEachFeature: function (feature, layer) {
+                        // Ajouter une popup au polygone avec le nom du toponyme
+                        layer.bindPopup('<b>Toponyme:</b> ' + feature.properties.TOPONYME);
+
+                        // Activer l'outil de dessin pour le surlignage
+                        layer.on('click', function (e) {
+                            if (highlightedLayer) {
+                                map.removeLayer(highlightedLayer);
+                            }
+                            highlightedLayer = L.geoJSON(feature, {
+                                style: {
+                                    fillColor: 'yellow', // Couleur de surlignage
+                                    weight: 2,
+                                    opacity: 1,
+                                    color: 'white',
+                                    fillOpacity: 0.7
+                                }
+                            }).addTo(map);
+
+                            // Mettre à jour le panneau d'informations avec les données du polygone
+                            infoPanel.update(feature.properties);
+                        });
+                    }
+                }).addTo(map);
+
+                // Fonction pour générer une couleur aléatoire en format HEX
+                function getRandomColor() {
+                    return '#' + Math.floor(Math.random() * 16777215).toString(16);
+                }
+
+                // Créer un objet pour stocker les couches par toponyme
+                var layersByToponyme = {};
+
+                // Parcourir les features du GeoJSON pour créer des couches par toponyme
+                data.features.forEach(function (feature) {
+                    var toponyme = feature.properties.TOPONYME;
+                    if (!layersByToponyme[toponyme]) {
+                        layersByToponyme[toponyme] = L.layerGroup();
+                    }
+                    layersByToponyme[toponyme].addLayer(L.geoJSON(feature));
+                });
+
+                // Créer une couche de contrôle pour la légende
+                var legendControl = L.control.layers(null, layersByToponyme).addTo(map);
+
+                // Ajouter un gestionnaire d'événement pour la sélection de la légende
+                map.on('overlayadd', function (eventLayer) {
+                    // Zoom sur la couche ajoutée à la carte
+                    map.fitBounds(eventLayer.layer.getBounds());
+                });
+            });
+
+    </script>
+</body>
+</html>
